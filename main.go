@@ -65,7 +65,7 @@ func main() {
 	}
 }
 
-func makeRequest(c *http.Client, method string, url string, headers map[string]string, params map[string]string) ([]byte, error) {
+func makeRequest(c *http.Client, method, url string, headers, params map[string]string) ([]byte, error) {
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func makeRequest(c *http.Client, method string, url string, headers map[string]s
 	return body, nil
 }
 
-func getReviews(c *http.Client, token string, timestamp string) (Review, error) {
+func getReviews(c *http.Client, token, timestamp string) (Review, error) {
 	url := "https://dvmn.org/api/long_polling/"
 
 	headers := make(map[string]string)
@@ -128,7 +128,7 @@ func prepareMessage(attempt Attempt) string {
 	return fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", attempt.Title, result, attempt.Url)
 }
 
-func sendTelegramNotification(c *http.Client, token string, text string, chatId string) error {
+func sendTelegramNotification(c *http.Client, token, text, chatId string) error {
 	url := "https://api.telegram.org/bot" + token + "/sendMessage"
 
 	headers := make(map[string]string)
