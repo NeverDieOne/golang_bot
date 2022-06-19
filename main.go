@@ -11,12 +11,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func getReviews(c *http.Client, t string, u string) (map[string]interface{}, error) {
-	req, err := http.NewRequest("GET", u, nil)
-	req.Header.Set("Authorization", "Token "+t)
+func getReviews(c *http.Client, token string, url string, timestamp string) (map[string]interface{}, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Token "+token)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	q := req.URL.Query()
+	q.Add("timestamp", timestamp)
+	req.URL.RawQuery = q.Encode()
 
 	response, err := c.Do(req)
 	if err != nil {
@@ -46,10 +50,10 @@ func main() {
 	token := os.Getenv("DVMN_TOKEN")
 	c := &http.Client{Timeout: 95 * time.Second}
 	url := "https://dvmn.org/api/long_polling/"
-	var timestamp interface{}
+	timestamp := ""
 
 	for {
-		reviews, err := getReviews(c, token, url)
+		reviews, err := getReviews(c, token, url, timestamp)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -58,15 +62,13 @@ func main() {
 		status := reviews["status"]
 		switch status {
 		case "timeout":
-			timestamp = reviews["timestamp_to_request"]
+			timestamp, _ = reviews["timestamp_to_request"].(string)
 		case "found":
-			timestamp = reviews["last_attempt_timestamp"]
+			timestamp, _ = reviews["timestamp_to_request"].(string)
 			attempts, _ := reviews["new_attempts"].([]interface{})
 			log.Println(attempts)
 		default:
 			log.Println("Unexpected status: " + status.(string))
 		}
-
-		log.Println(timestamp)
 	}
 }
