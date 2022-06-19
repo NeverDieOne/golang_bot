@@ -66,7 +66,7 @@ func main() {
 }
 
 func makeRequest(c *http.Client, method string, url string, headers map[string]string, params map[string]string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
 	}
