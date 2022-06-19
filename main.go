@@ -91,7 +91,7 @@ func makeRequest(c *http.Client, method, url string, headers, params map[string]
 	}
 	defer response.Body.Close()
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("Bad request. Status code: %d", response.StatusCode)
+		return nil, fmt.Errorf("Bad request. Status: %s", response.Status)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
