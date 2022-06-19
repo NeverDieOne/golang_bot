@@ -57,7 +57,7 @@ func main() {
 
 		status := reviews["status"]
 		switch status {
-		case "timeut":
+		case "timeout":
 			timestamp = reviews["timestamp_to_request"]
 		case "found":
 			timestamp = reviews["last_attempt_timestamp"]
