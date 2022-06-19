@@ -117,9 +117,7 @@ func prepareMessage(attempt interface{}) string {
 		result = "Отличная работа! Преподаватель её принял!"
 	}
 
-	text := fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", workTitle, result, workUrl)
-
-	return text
+	return fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", workTitle, result, workUrl)
 }
 
 func sendTelegramNotification(c *http.Client, token string, text string, chatId string) error {
