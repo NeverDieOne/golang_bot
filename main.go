@@ -20,7 +20,7 @@ type Attempt struct {
 	SubmittedAt string  `json:"submitted_at"`
 }
 
-type Reviews struct {
+type Review struct {
 	FoundTimestamp   float64    `json:"last_attempt_timestamp,omitempy"`
 	TimeoutTimestamp float64    `json:"timestamp_to_request,omitempy"`
 	Status           string     `json:"status"`
@@ -95,7 +95,7 @@ func makeRequest(c *http.Client, method string, url string, headers map[string]s
 	return body, nil
 }
 
-func getReviews(c *http.Client, token string, timestamp string) (Reviews, error) {
+func getReviews(c *http.Client, token string, timestamp string) (Review, error) {
 	url := "https://dvmn.org/api/long_polling/"
 
 	headers := make(map[string]string)
@@ -106,12 +106,12 @@ func getReviews(c *http.Client, token string, timestamp string) (Reviews, error)
 
 	body, err := makeRequest(c, "GET", url, headers, params)
 	if err != nil {
-		return Reviews{}, err
+		return Review{}, err
 	}
 
-	reviews := Reviews{}
+	reviews := Review{}
 	if err := json.Unmarshal(body, &reviews); err != nil {
-		return Reviews{}, err
+		return Review{}, err
 	}
 
 	return reviews, nil
