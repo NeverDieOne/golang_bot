@@ -12,6 +12,22 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Attempt struct {
+	Timestamp   float64 `json:"timestamp"`
+	Title       string  `json:"lesson_title"`
+	Url         string  `json:"lesson_url"`
+	IsNegative  bool    `json:"is_negative"`
+	SubmittedAt string  `json:"submitted_at"`
+}
+
+type Reviews struct {
+	FoundTimestamp   float64    `json:"last_attempt_timestamp,omitempy"`
+	TimeoutTimestamp float64    `json:"timestamp_to_request,omitempy"`
+	Status           string     `json:"status"`
+	RequestQuery     [][]string `json:"request_query"`
+	Attempts         []Attempt  `json:"new_attempts,omitempty"`
+}
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal(err)
@@ -31,14 +47,12 @@ func main() {
 			continue
 		}
 
-		status := reviews["status"]
-		switch status {
+		switch reviews.Status {
 		case "timeout":
-			timestamp, _ = reviews["timestamp_to_request"].(string)
+			timestamp = fmt.Sprint(reviews.TimeoutTimestamp)
 		case "found":
-			timestamp, _ = reviews["timestamp_to_request"].(string)
-			attempts, _ := reviews["new_attempts"].([]interface{})
-			for _, attempt := range attempts {
+			timestamp = fmt.Sprint(reviews.FoundTimestamp)
+			for _, attempt := range reviews.Attempts {
 				message := prepareMessage(attempt)
 				if err := sendTelegramNotification(c, tgBotToken, message, chatId); err != nil {
 					log.Println(err)
@@ -46,7 +60,7 @@ func main() {
 				}
 			}
 		default:
-			log.Println("Unexpected status: " + status.(string))
+			log.Println("Unexpected status: " + reviews.Status)
 		}
 	}
 }
@@ -81,7 +95,7 @@ func makeRequest(c *http.Client, method string, url string, headers map[string]s
 	return body, nil
 }
 
-func getReviews(c *http.Client, token string, timestamp string) (map[string]interface{}, error) {
+func getReviews(c *http.Client, token string, timestamp string) (Reviews, error) {
 	url := "https://dvmn.org/api/long_polling/"
 
 	headers := make(map[string]string)
@@ -95,7 +109,7 @@ func getReviews(c *http.Client, token string, timestamp string) (map[string]inte
 		log.Fatal(err)
 	}
 
-	reviews := map[string]interface{}{}
+	reviews := Reviews{}
 	if err := json.Unmarshal(body, &reviews); err != nil {
 		log.Fatal(err)
 	}
@@ -103,21 +117,15 @@ func getReviews(c *http.Client, token string, timestamp string) (map[string]inte
 	return reviews, nil
 }
 
-func prepareMessage(attempt interface{}) string {
-	preparedAttempt, _ := attempt.(map[string]interface{})
-
-	workTitle := preparedAttempt["lesson_title"].(string)
-	workUrl := preparedAttempt["lesson_url"].(string)
-	isNegative := preparedAttempt["is_negative"].(bool)
-
+func prepareMessage(attempt Attempt) string {
 	var result string
-	if isNegative {
+	if attempt.IsNegative {
 		result = "К сожалению в работе нашлись ошибки."
 	} else {
 		result = "Отличная работа! Преподаватель её принял!"
 	}
 
-	return fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", workTitle, result, workUrl)
+	return fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", attempt.Title, result, attempt.Url)
 }
 
 func sendTelegramNotification(c *http.Client, token string, text string, chatId string) error {
