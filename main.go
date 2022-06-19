@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,49 +12,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func getReviews(c *http.Client, token string, url string, timestamp string) (map[string]interface{}, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Token "+token)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	q := req.URL.Query()
-	q.Add("timestamp", timestamp)
-	req.URL.RawQuery = q.Encode()
-
-	response, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer response.Body.Close()
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	reviews := map[string]interface{}{}
-	if err := json.Unmarshal(body, &reviews); err != nil {
-		log.Fatal(err)
-	}
-
-	return reviews, nil
-}
-
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal(err)
 	}
 
-	token := os.Getenv("DVMN_TOKEN")
+	dvmnToken := os.Getenv("DVMN_TOKEN")
+	tgBotToken := os.Getenv("TG_BOT_TOKEN")
+	chatId := os.Getenv("TG_CHAT_ID")
+
 	c := &http.Client{Timeout: 95 * time.Second}
-	url := "https://dvmn.org/api/long_polling/"
 	timestamp := ""
 
 	for {
-		reviews, err := getReviews(c, token, url, timestamp)
+		reviews, err := getReviews(c, dvmnToken, timestamp)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -66,9 +38,100 @@ func main() {
 		case "found":
 			timestamp, _ = reviews["timestamp_to_request"].(string)
 			attempts, _ := reviews["new_attempts"].([]interface{})
-			log.Println(attempts)
+			for _, attempt := range attempts {
+				message := prepareMessage(attempt)
+				if err := sendTelegramNotification(c, tgBotToken, message, chatId); err != nil {
+					log.Println(err)
+					continue
+				}
+			}
 		default:
 			log.Println("Unexpected status: " + status.(string))
 		}
 	}
+}
+
+func makeRequest(c *http.Client, method string, url string, headers map[string]string, params map[string]string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for header, headerValue := range headers {
+		req.Header.Set(header, headerValue)
+	}
+
+	q := req.URL.Query()
+	for param, paramValue := range params {
+		q.Add(param, paramValue)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	response, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
+}
+
+func getReviews(c *http.Client, token string, timestamp string) (map[string]interface{}, error) {
+	url := "https://dvmn.org/api/long_polling/"
+
+	headers := make(map[string]string)
+	params := make(map[string]string)
+
+	headers["Authorization"] = "Token " + token
+	params["timestamp"] = timestamp
+
+	body, err := makeRequest(c, "GET", url, headers, params)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	reviews := map[string]interface{}{}
+	if err := json.Unmarshal(body, &reviews); err != nil {
+		log.Fatal(err)
+	}
+
+	return reviews, nil
+}
+
+func prepareMessage(attempt interface{}) string {
+
+	something, _ := attempt.(map[string]interface{})
+
+	workTitle := something["lesson_title"].(string)
+	workUrl := something["lesson_url"].(string)
+	isNegative := something["is_negative"].(bool)
+
+	var result string
+	if isNegative {
+		result = "К сожалению в работе нашлись ошибки."
+	} else {
+		result = "Отличная работа! Преподаватель её принял!"
+	}
+
+	text := fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", workTitle, result, workUrl)
+
+	return text
+}
+
+func sendTelegramNotification(c *http.Client, token string, text string, chatId string) error {
+	url := "https://api.telegram.org/bot" + token + "/sendMessage"
+
+	headers := make(map[string]string)
+	params := make(map[string]string)
+
+	params["chat_id"] = chatId
+	params["text"] = text
+
+	_, err := makeRequest(c, "GET", url, headers, params)
+	return err
 }
