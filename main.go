@@ -104,12 +104,11 @@ func getReviews(c *http.Client, token string, timestamp string) (map[string]inte
 }
 
 func prepareMessage(attempt interface{}) string {
+	preparedAttempt, _ := attempt.(map[string]interface{})
 
-	something, _ := attempt.(map[string]interface{})
-
-	workTitle := something["lesson_title"].(string)
-	workUrl := something["lesson_url"].(string)
-	isNegative := something["is_negative"].(bool)
+	workTitle := preparedAttempt["lesson_title"].(string)
+	workUrl := preparedAttempt["lesson_url"].(string)
+	isNegative := preparedAttempt["is_negative"].(bool)
 
 	var result string
 	if isNegative {
