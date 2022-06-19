@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -43,6 +44,9 @@ func main() {
 	for {
 		reviews, err := getReviews(c, dvmnToken, timestamp)
 		if err != nil {
+			if e, ok := err.(net.Error); ok && e.Timeout() {
+				continue
+			}
 			log.Println(err)
 			continue
 		}
