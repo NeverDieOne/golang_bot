@@ -106,12 +106,12 @@ func getReviews(c *http.Client, token string, timestamp string) (Reviews, error)
 
 	body, err := makeRequest(c, "GET", url, headers, params)
 	if err != nil {
-		log.Fatal(err)
+		return Reviews{}, err
 	}
 
 	reviews := Reviews{}
 	if err := json.Unmarshal(body, &reviews); err != nil {
-		log.Fatal(err)
+		return Reviews{}, err
 	}
 
 	return reviews, nil
