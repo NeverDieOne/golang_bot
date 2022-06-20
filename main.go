@@ -21,6 +21,17 @@ type Attempt struct {
 	SubmittedAt string  `json:"submitted_at"`
 }
 
+func (a *Attempt) Message() string {
+	var result string
+	if a.IsNegative {
+		result = "К сожалению в работе нашлись ошибки."
+	} else {
+		result = "Отличная работа! Преподаватель её принял!"
+	}
+
+	return fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", a.Title, result, a.Url)
+}
+
 type Review struct {
 	FoundTimestamp   float64    `json:"last_attempt_timestamp,omitempy"`
 	TimeoutTimestamp float64    `json:"timestamp_to_request,omitempy"`
@@ -57,8 +68,8 @@ func main() {
 		case "found":
 			timestamp = fmt.Sprint(reviews.FoundTimestamp)
 			for _, attempt := range reviews.Attempts {
-				message := prepareMessage(attempt)
-				if err := sendTelegramNotification(c, tgBotToken, message, chatId); err != nil {
+				err := sendTelegramNotification(c, tgBotToken, attempt.Message(), chatId)
+				if err != nil {
 					log.Println(err)
 					continue
 				}
@@ -122,17 +133,6 @@ func getReviews(c *http.Client, token, timestamp string) (Review, error) {
 	}
 
 	return reviews, nil
-}
-
-func prepareMessage(attempt Attempt) string {
-	var result string
-	if attempt.IsNegative {
-		result = "К сожалению в работе нашлись ошибки."
-	} else {
-		result = "Отличная работа! Преподаватель её принял!"
-	}
-
-	return fmt.Sprintf("Вашу работу '%s' проверили.\n%s\n%s", attempt.Title, result, attempt.Url)
 }
 
 func sendTelegramNotification(c *http.Client, token, text, chatId string) error {
